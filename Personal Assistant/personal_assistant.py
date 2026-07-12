@@ -1,13 +1,16 @@
 from langchain.agents import create_agent, AgentState
-from langchain import BaseMessage
+from langchain_core.messages import BaseMessage
 
 class CustomAgentState(AgentState):
-    messages: List[str]
-    preferences: dict
+    preferred_language: str
+    verbosity: str
+    tone: str
+    name: str
 
 agent = create_agent(
     model="openai:gpt-5-nano",
-    system_prompt="You are a helfpul assistant."
+    system_prompt="You are a helfpul assistant.",
+    state_schema=CustomAgentState
 )
 
 result = agent.invoke(
@@ -15,10 +18,13 @@ result = agent.invoke(
         "messages": [ 
             {
                 "role": "user",
-                # "content": "What's the weather in San Francisco?"
-                "content": "My name is Asaad. Remember this for future conversations."
+                "content": "Hi. Can you tell me what my name and preferred_language are?"
             }
-        ]
+        ],
+        "preferred_language": "English (U.K.)",
+        "verbosity": "concise",
+        "tone": "friendly",
+        "name": "Asaad"
     }
 )
 
