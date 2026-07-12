@@ -1,5 +1,6 @@
 from langchain.agents import create_agent, AgentState
 from langchain_core.messages import BaseMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
 from collections.abc import Callable
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
@@ -32,26 +33,29 @@ agent = create_agent(
     model="openai:gpt-5-nano",
     system_prompt="You are a helfpul assistant.",
     state_schema=CustomAgentState,
-    middleware=[add_context]
+    middleware=[add_context],
+    checkpointer=InMemorySaver()
 )
+
+thread_config = {"configurable": {"thread_id": "1"}}
 
 result = agent.invoke(
     {
         "messages": [ 
             {
                 "role": "user",
-                "content": "Hi. Can you tell me what my name and preferred language are?"
+                "content": "Hi. What are my name and preferred language?"
             }
         ],
         "preferred_language": "English (U.K.)",
         "verbosity": "concise",
         "tone": "friendly",
         "name": "Asaad"
-    }
+    }, 
+    thread_config
 )
 
 print(result["messages"][-1].content_blocks)
-
 
 
 
