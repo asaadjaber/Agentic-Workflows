@@ -6,6 +6,10 @@ from collections.abc import Callable
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
 from langchain.messages import SystemMessage
 
+from langchain.messages import ToolMessage
+from langchain.tools import tool, ToolRuntime
+from langgraph.types import Command
+
 class CustomAgentState(AgentState):
     preferred_language: str
     verbosity: str
@@ -29,12 +33,28 @@ def add_context(
     new_system_message = SystemMessage(content=new_content)
     return handler(request.override(system_message=new_system_message))
 
+@tool
+def set_preferred_language(new_language: str, runtime: ToolRuntime[None, CustomAgentState]) -> Command:
+    """Set the user's preferred language in the conversation state."""
+    return Command(
+        update={
+            "preferred_language": new_language,
+            "messages": [
+                ToolMessage(
+                    content=f"Preferred language set to {new_language}.",
+                    tool_call_id=runtime.tool_call_id,
+                )
+            ],
+        }
+    )
+
 agent = create_agent(
     model="openai:gpt-5-nano",
     system_prompt="You are a helfpul assistant.",
     state_schema=CustomAgentState,
     middleware=[add_context],
-    checkpointer=InMemorySaver()
+    checkpointer=InMemorySaver(),
+    tools=[set_preferred_language]
 )
 
 thread_config = {"configurable": {"thread_id": "1"}}
@@ -47,7 +67,7 @@ result = agent.invoke(
                 "content": "Hi. What are my name and preferred language?"
             }
         ],
-        "preferred_language": "English (U.K.)",
+        "preferred_language": "English",
         "verbosity": "concise",
         "tone": "friendly",
         "name": "Asaad"
@@ -57,6 +77,31 @@ result = agent.invoke(
 
 print(result["messages"][-1].content_blocks)
 
+result = agent.invoke(
+    {
+        "messages": [ 
+            {
+                "role": "user",
+                "content": "Set my preferred language to English (U.K.)"
+            }
+        ],
+    }, 
+    thread_config
+)
 
+print(result["messages"][-1].content_blocks)
 
+result = agent.invoke(
+    {
+        "messages": [ 
+            {
+                "role": "user",
+                "content": "What's my preferred language?"
+            }
+        ],
+    }, 
+    thread_config
+)
+
+print(result["messages"][-1].content_blocks)
 
