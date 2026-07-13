@@ -1,0 +1,1 @@
+refund_policy = """Refunds are allowed within 30 days of the purchase date."""

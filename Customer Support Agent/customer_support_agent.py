@@ -6,8 +6,10 @@ from tools.fetch_customer_information_tool import fetch_customer_information
 from tools.fetch_order_information_tool import fetch_order_information
 from tools.update_current_issue_tool import update_current_issue
 from tools.update_order_id_tool import update_order_id
+from tools.refund_order import refund_order
 
 from customer_information_state import CustomerInformationState
+from middleware import add_refund_policy_context
 
 model = "openai:gpt-5-nano"
 
@@ -25,8 +27,9 @@ agent = create_agent(
            update_order_id, 
            fetch_order_information, 
            update_current_issue, 
-           check_shipping_status],
-    middleware=[],
+           check_shipping_status,
+           refund_order],
+    middleware=[add_refund_policy_context],
     checkpointer=InMemorySaver()
 )
 
