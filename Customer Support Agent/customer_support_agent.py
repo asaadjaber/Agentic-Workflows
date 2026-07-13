@@ -39,7 +39,7 @@ class CustomerInformationState(AgentState):
     tracking_number: str
 
 @tool
-def fetch_customer_information(email: str, runtime: ToolRuntime[None, CustomerInformationState] ) -> Command: 
+def fetch_customer_information(email: str, runtime: ToolRuntime[None, CustomerInformationState]) -> Command: 
     """This tool fetches a customer's information. Look up is by email.
         Arguments: email - the email of a user by which to look up customer info. 
     """
@@ -59,15 +59,92 @@ def fetch_customer_information(email: str, runtime: ToolRuntime[None, CustomerIn
                 }
             )
 
+@tool
+def update_order_id(order_number: int, runtime: ToolRuntime[None, CustomerInformationState]) -> Command:
+    """This tool updates the the order id in the customer information state when a customer provides an order number. 
+        Arguments: order_number - the order number by which to look up an order for which to set in state. 
+    """
+    print("updating order_id in state")
+    for order_key in orders:
+        if order_key == order_number:
+            order = orders[order_key]
+            order_id = order.get("order_id")
+            return Command(
+                update={
+                    "order_id": order_id,
+                    "messages": [
+                        ToolMessage(
+                            content=f"Updated order id to {order_id}",
+                            tool_call_id=runtime.tool_call_id,
+                        )
+                    ]
+                }
+            )
+
+@tool 
+def fetch_order_information(order_number: str) -> dict | None: 
+    """This tool fetches the order by order number when a customer requests a lookup. 
+        Use this tool to pull up order information. 
+        Arguments: order_number - the order number by which to look up an order. 
+    """
+    print("fetching order information")
+    for order_key in orders: 
+        if order_key == order_number:
+            order = orders[order_key]
+            return order
+        
+    return None
+
+@tool 
+def check_shipping_status(order_number: str) -> str | None: 
+    """This tool fetches the shipping status of the current order.
+        Use this tool to pull up the shipping status directly. 
+        Arguments: order_number: the order number for which to look up an order.
+    """
+    print("checking shipping status")
+    for order_key in orders:
+        if order_key == order_number:
+            order = orders[order_key]
+            shipping_status = order.get("shipping_status")
+            return shipping_status
+
+    return None
+
+@tool 
+def update_current_issue(str: str, runtime: ToolRuntime[None, CustomerInformationState]) -> Command: 
+    """This tool updates the current issue in the customer information state when a new issue arises. 
+        Use this to keep track of the current issue the customer is experiencing.
+        Arguments: str - the issue which to update in the information state. 
+    """
+    print("updating current issue")
+    return Command(
+        update={
+            "current_issue": str,
+            "messages": [
+                ToolMessage(
+                    content=f"Updated current issue to {str}",
+                    tool_call_id=runtime.tool_call_id
+                )
+            ]
+        }
+    )
+
 model = "openai:gpt-5-nano"
 
 agent = create_agent(
     model=model,
     system_prompt="""You are a helpful customer support agent. Help users with their orders in a concise and polite manner.
-                     Begin by asking a customer for their customer email, and look up their customer information. Then address them by their first name.  
+                     Begin by asking a customer for their customer email, and look up their customer information. 
+                     Then address them by their first name.
+                     When provided an order number, the first thing you should do is update the order id in the information state. 
+                     You can afterwards look up the order by the order id.  
+                     Update the current issue the customer is experiencing whenever it is appropriate to do so.  
                   """,
     state_schema=CustomerInformationState,
-    tools=[fetch_customer_information],
+    tools=[fetch_customer_information, 
+           update_order_id, fetch_order_information, 
+           update_current_issue, 
+           check_shipping_status],
     middleware=[],
     checkpointer=InMemorySaver()
 )
