@@ -3,6 +3,8 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Literal
 from langchain.chat_models import init_chat_model
+from langchain.agents import create_agent
+from langchain.tools import tool
 
 orders = {
     "12345": {
@@ -36,7 +38,6 @@ def load_order_node(state: OrderState) -> OrderState:
             "refund_status": orders[order_id].get("refund_status"),
             "payment_method": orders[order_id].get("payment_method")
         }
-    
 
 model = init_chat_model("gpt-5-nano")
 
@@ -61,10 +62,38 @@ def check_eligibility_node(state: OrderState) -> OrderState:
             "eligible_for_refund": False
         }
 
-def refund_node(state: OrderState) -> OrderState:        
+def refund_node(state: OrderState) -> OrderState:  
+    agent = create_agent(
+        model="openai:gpt-5-nano",
+        system_prompt="""You are a helpful refund assistant.
+        Your role is to refund a customer's order when provided with an order id.""",
+        tools=[refund_order]
+    )
+
+    agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"Process refund for order id {state["order_id"]}",
+                }
+            ],
+        },
+    )
+
     return {
         "refund_status": "refunded"
     }
+
+@tool
+def refund_order(order_id: str) -> bool:
+    """Use this tool to refund orders.
+    Args: order_id - refers to the order id by which to look up an order.
+    """
+    print("refunding order")
+    order = orders[order_id]
+    order["refund_status"] = "refunded"
+    return True 
 
 def reject_node(state: OrderState) -> OrderState: 
     return { 
